@@ -1,0 +1,49 @@
+,Ele 1 Floor,Ele 1 Status,Ele 2 Floor,Ele 2 Status,Ele 3 Floor,Ele 3 Status
+-1,1,idle,1,idle,1,idle
+0,1,at_stop,1,idle,1,idle
+1,2,moving_upwards,1,idle,1,idle
+2,3,moving_upwards,1,idle,1,idle
+3,4,moving_upwards,2,moving_upwards,1,idle
+4,5,moving_upwards,3,moving_upwards,1,idle
+5,6,moving_upwards,4,moving_upwards,1,idle
+6,7,moving_upwards,4,at_stop,1,idle
+7,8,moving_upwards,5,moving_upwards,1,idle
+8,8,at_stop,6,moving_upwards,1,idle
+9,9,moving_upwards,7,moving_upwards,1,idle
+10,9,at_stop,8,moving_upwards,1,idle
+11,8,moving_downwards,9,moving_upwards,1,idle
+12,8,at_stop,10,moving_upwards,1,idle
+13,7,moving_downwards,11,moving_upwards,1,idle
+14,6,moving_downwards,12,moving_upwards,1,idle
+15,5,moving_downwards,13,moving_upwards,1,idle
+16,5,at_stop,14,moving_upwards,1,idle
+17,4,moving_downwards,15,moving_upwards,1,idle
+18,3,moving_downwards,15,at_stop,1,idle
+19,3,at_stop,14,moving_downwards,1,idle
+20,3,idle,13,moving_downwards,1,idle
+21,3,idle,12,moving_downwards,1,idle
+22,3,idle,11,moving_downwards,1,idle
+23,3,idle,10,moving_downwards,1,idle
+24,3,idle,9,moving_downwards,1,idle
+25,3,idle,8,moving_downwards,1,idle
+26,3,idle,7,moving_downwards,1,idle
+27,3,idle,6,moving_downwards,1,idle
+28,3,idle,5,moving_downwards,1,idle
+29,3,idle,4,moving_downwards,1,idle
+30,3,idle,3,moving_downwards,1,idle
+31,3,idle,2,moving_downwards,1,idle
+32,3,idle,2,at_stop,1,idle
+
+
+,Call Time,Source->Dest,Pickup Time,Dropoff Time,Wait Time,Total Time,Elevator
+passenger1,0,1 -> 8,0,8,0,8,Ele 1
+passenger2,2,9 -> 3,10,19,8,17,Ele 1
+passenger3,3,4 -> 15,6,18,3,15,Ele 2
+passenger4,4,15 -> 2,18,32,14,28,Ele 2
+passenger5,5,8 -> 5,12,16,7,11,Ele 1
+
+
+,Wait Times,Total Times
+Min,0.0,8.0
+Max,14.0,28.0
+Mean,6.4,15.8
