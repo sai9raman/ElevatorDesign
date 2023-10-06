@@ -61,7 +61,9 @@ class ElevatorDispatcher:
     ) -> int:
         wait_time = 0
         for i, stop in enumerate(elevator_plan[:source_index]):
-            wait_time += abs(stop.floor - (elevator_plan[i - 1].floor if i > 0 else current_floor))
+            wait_time += abs(stop.floor - (elevator_plan[i - 1].floor if i > 0 else current_floor)) + 1
+            # Note the additional +1 is one additional time unit for each prior stop
+
         return wait_time + abs(
             self.request.source_floor - (elevator_plan[source_index - 1].floor if source_index > 0 else current_floor)
         )
@@ -69,20 +71,48 @@ class ElevatorDispatcher:
     def get_travel_time_for_request(
             self, elevator_plan: list[ElevatorStop], source_index: int, target_index: int
     ) -> int:
+        """
+        This calculation can be visualized in three pieces:
+        1. Getting from Source Floor to the next stop in the plan
+        2. Getting through all the stops in the plan starting the from stop after the source floor
+            upto the floor just before the target floor
+        3. Getting from the stop right before the target floor to the target floor
+
+        Note that we have to do it this way, because the plan is not yet updated with the
+        request floors
+        """
+        if target_index == source_index + 1:
+            return abs(self.request.target_floor - self.request.source_floor)
+
+        if target_index == source_index + 2:
+            return abs(
+                (elevator_plan[source_index].floor
+                 if source_index < len(elevator_plan)
+                 else self.request.target_floor)
+                - self.request.source_floor
+            ) + 1 + (  # the +1 is for the wait time at the stop
+                       abs(self.request.target_floor - elevator_plan[source_index].floor)
+                   )
+
+        # Piece 1: Source Floor to Next stop
         travel_time = abs(
-            (elevator_plan[source_index + 1].floor if source_index < len(
-                elevator_plan
-            ) - 1 else
-             self.request.target_floor) - self.request.source_floor
-        )
-        for i, stop in enumerate(elevator_plan[source_index + 1:target_index]):
-            travel_time += abs(stop.floor - elevator_plan[i - 1].floor)
-        return travel_time + abs(
-            self.request.target_floor - (
-                elevator_plan[target_index - 1].floor if target_index < len(
-                    elevator_plan
-                ) else self.request.target_floor)
-        )
+            (elevator_plan[source_index].floor
+             if source_index < len(elevator_plan)
+             else self.request.target_floor)
+            - self.request.source_floor
+        ) + 1  # the +1 is for the wait time at the stop
+
+        # Piece 2: Source Floor Next Stop -> Floor right before target floor
+        for i in range(source_index + 1, min(len(elevator_plan), target_index)):
+            travel_time += abs(elevator_plan[i].floor - elevator_plan[i - 1].floor) + 1
+            # Note that the +1 is added for the wait time at that stop
+
+        # Piece 3: Floor right before target floor -> target floor
+        if target_index < len(elevator_plan):
+            travel_time += abs(self.request.target_floor - elevator_plan[target_index - 1].floor)
+        elif target_index >= len(elevator_plan):
+            travel_time += abs(self.request.target_floor - elevator_plan[-1].floor)
+        return travel_time
 
     def get_indices_in_elevator_plan_for_request(
             self, current_floor: int, elevator_plan: list[ElevatorStop],
@@ -104,8 +134,8 @@ class ElevatorDispatcher:
         if len(elevator_floor_plan) <= 1:
             return 0, 1  # add to beginning of plan,
 
-        # Slice the plan into ordered subplans (this includes current floor)
-        sorted_subplans = self._split_plan_into_ordered_subplans(elevator_floor_plan)
+        # Slice the plan into ordered subplans
+        sorted_subplans = self.split_plan_into_ordered_subplans(elevator_floor_plan)
 
         # evaluate each subplan to assess if the request can be worked into it
         current_floor_adj = -1 if not current_floor_is_first_stop else 0
@@ -117,7 +147,7 @@ class ElevatorDispatcher:
         if not matching_subplan:
             return len(elevator_floor_plan) + current_floor_adj, len(elevator_floor_plan) + current_floor_adj + 1
 
-            # if subplan is found, then correctly insert this request into that elevator's plan
+        # if subplan is found, then correctly insert this request into that subplan
         source_index, target_index = self.find_insertion_points_in_array(
             sorted_subplan=matching_subplan,
             source_floor=self.request.source_floor,
@@ -137,30 +167,38 @@ class ElevatorDispatcher:
     ) -> tuple[int, int]:
         if dir == 1:
             comparison_operator = operator.le
+            strict_comparison_operator = operator.lt
         elif dir == -1:
             comparison_operator = operator.ge
+            strict_comparison_operator = operator.gt
         else:
             raise Exception("Unknown direction")
+
+        if sorted(sorted_subplan, reverse=True if dir == -1 else False) != sorted_subplan:
+            raise Exception("Subplan is not sorted")
 
         source_index = None
         target_index = None
         source_already_in_plan_flag = False
         for i in range(len(sorted_subplan)):
             if comparison_operator(source_floor, sorted_subplan[i]):
+                if strict_comparison_operator(source_floor, sorted_subplan[i]) and i == 0:
+                    raise Exception("Logic Failing - source floor not in subplan range")
                 source_index = i
                 if source_floor == sorted_subplan[i]:
                     source_already_in_plan_flag = True
                 break
 
         if source_index is None:
-            raise Exception("Logic Failing")
+            raise Exception("Logic Failing - source floor not in subplan range")
 
-        for i in range(source_index - 1, len(sorted_subplan)):
+        for i in range(max(source_index - 1, 0), len(sorted_subplan)):
             if comparison_operator(target_floor, sorted_subplan[i]):
                 target_index = i
+                break
 
         if target_index is None:
-            raise Exception("Logic Failing")
+            raise Exception("Logic Failing - target floor not in subplan range")
 
         if not source_already_in_plan_flag:
             target_index += 1  # adjusting for the adding of the source floor
@@ -168,7 +206,9 @@ class ElevatorDispatcher:
         return source_index, target_index
 
     @staticmethod
-    def _split_plan_into_ordered_subplans(plan: list[int]) -> list[list]:
+    def split_plan_into_ordered_subplans(plan: list[int]) -> list[list]:
+        if len(plan) < 2:
+            raise Exception("Plan is too small to split; logical inconsistency")
         inflection_points = []
         dir = np.sign(plan[1] - plan[0])
         for i in range(1, len(plan) - 1):

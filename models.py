@@ -41,12 +41,13 @@ class Elevator:
         unavailable = "unavailable"  # for maintenance or other special reasons
 
     def __init__(
-            self, state: ElevatorState, name: str, current_floor: int, max_number_of_passengers: int, ) -> None:
+            self, state: ElevatorState, name: str, current_floor: int, max_capacity_of_elevator: int
+    ) -> None:
         self.state = state
         self.name = name
         self.current_floor = current_floor
         self.passengers = []  # not implemented: list of request ids
-        self.capacity = max_number_of_passengers
+        self.capacity = max_capacity_of_elevator
         self.elevator_plan: list[ElevatorStop] = []
 
     @property
@@ -100,7 +101,7 @@ class Building:
             self,
             number_of_floors: int,
             number_of_elevators: int,
-            max_capacity_of_elevator: int = 10,
+            max_capacity_of_elevator: int,
     ) -> None:
         self.floors = number_of_floors
         self.number_of_elevators = number_of_elevators
@@ -108,7 +109,7 @@ class Building:
             Elevator(
                 state=Elevator.ElevatorState.idle,
                 name=f"Ele {i + 1}", current_floor=1,
-                max_number_of_passengers=max_capacity_of_elevator,
+                max_capacity_of_elevator=max_capacity_of_elevator,
             ) for i in range(self.number_of_elevators)
         ]
 

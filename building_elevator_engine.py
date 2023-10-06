@@ -9,15 +9,19 @@ class BuildingElevatorEngine:
             self,
             number_of_floors: int,
             number_of_elevators: int,
+            max_capacity_of_elevator: int,
             input_df: pd.DataFrame,
     ):
         self.building = Building(
             number_of_floors=number_of_floors,
             number_of_elevators=number_of_elevators,
+            max_capacity_of_elevator=max_capacity_of_elevator,
         )
         self.time = -1
         self.elevator_requests: list[CallRequest] = []
         self.input_df = input_df
+
+        # For logging and output
         elevator_log_columns = []
         for ele in self.building.elevators:
             elevator_log_columns += [f"{ele.name} Floor", f"{ele.name} Status"]
