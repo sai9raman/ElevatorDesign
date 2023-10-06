@@ -33,10 +33,7 @@ class ElevatorDispatcher:
         total_time_dict: dict[Elevator, int] = {}
         elevator_plan_update: dict[Elevator, PlanUpdate] = {}
         for elevator in self.elevators:
-            source_ind, target_ind = self.get_indices_in_elevator_plan_for_request(
-                elevator.current_floor,
-                elevator.elevator_plan,
-            )
+            source_ind, target_ind = self.get_indices_in_elevator_plan_for_request(elevator)
             total_time_dict[elevator] = self.get_total_time_for_request(
                 elevator.current_floor, elevator.elevator_plan,
                 source_ind, target_ind
@@ -115,7 +112,7 @@ class ElevatorDispatcher:
         return travel_time
 
     def get_indices_in_elevator_plan_for_request(
-            self, current_floor: int, elevator_plan: list[ElevatorStop],
+            self, elevator: Elevator,
     ) -> tuple[int, int]:
         """
         :param elevator_plan: list of stops
@@ -124,12 +121,12 @@ class ElevatorDispatcher:
         """
         request_diff = self.request.target_floor - self.request.source_floor
         request_dir = np.sign(request_diff)
-        if elevator_plan and current_floor == elevator_plan[0].floor:
+        if elevator.elevator_plan and elevator.current_floor == elevator.elevator_plan[0].floor:
             current_floor_is_first_stop = True
-            elevator_floor_plan = [stop.floor for stop in elevator_plan]
+            elevator_floor_plan = [stop.floor for stop in elevator.elevator_plan]
         else:
             current_floor_is_first_stop = False
-            elevator_floor_plan = [current_floor] + [stop.floor for stop in elevator_plan]
+            elevator_floor_plan = [elevator.current_floor] + [stop.floor for stop in elevator.elevator_plan]
 
         if len(elevator_floor_plan) <= 1:
             return 0, 1  # add to beginning of plan,
@@ -157,9 +154,30 @@ class ElevatorDispatcher:
         source_index += index_delta
         target_index += index_delta
 
-        # ToDo: Capacity Check - Check if request can work into elevator's capacity constraints
+        if not self.check_capacity(source_index=source_index, target_index=target_index, elevator=elevator):
+            return len(elevator_floor_plan) + current_floor_adj, len(elevator_floor_plan) + current_floor_adj + 1
 
         return source_index, target_index
+
+    @staticmethod
+    def check_capacity(source_index, target_index, elevator: Elevator) -> bool:
+        current_passenger_count = len(elevator.passengers)
+        for stop in elevator.elevator_plan[:source_index]:
+            current_passenger_count += (len(stop.pickup_requests) - len(stop.dropoff_requests))
+            if current_passenger_count > elevator.capacity:
+                print("reached capacity")
+                return False
+
+        current_passenger_count += 1  # for the source floor
+        if current_passenger_count > elevator.capacity:
+            print("reached capacity")
+            return False
+        for stop in elevator.elevator_plan[source_index:target_index]:
+            current_passenger_count += (len(stop.pickup_requests) - len(stop.dropoff_requests))
+            if current_passenger_count > elevator.capacity:
+                print("reached capacity")
+                return False
+        return True
 
     @staticmethod
     def find_insertion_points_in_array(

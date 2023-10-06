@@ -46,7 +46,7 @@ class Elevator:
         self.state = state
         self.name = name
         self.current_floor = current_floor
-        self.passengers = []  # not implemented: list of request ids
+        self.passengers = []
         self.capacity = max_capacity_of_elevator
         self.elevator_plan: list[ElevatorStop] = []
 
@@ -73,8 +73,10 @@ class Elevator:
         completed_stop = self.elevator_plan[0]
         for pickup_request in completed_stop.pickup_requests:
             pickup_request.pickup_time = time
+            self.passengers.append(pickup_request.id)
         for dropoff_request in completed_stop.dropoff_requests:
             dropoff_request.dropoff_time = time
+            self.passengers.remove(dropoff_request.id)
 
         self.elevator_plan = self.elevator_plan[1:]
 

@@ -24,7 +24,7 @@ class BuildingElevatorEngine:
         # For logging and output
         elevator_log_columns = []
         for ele in self.building.elevators:
-            elevator_log_columns += [f"{ele.name} Floor", f"{ele.name} Status"]
+            elevator_log_columns += [f"{ele.name} Floor", f"{ele.name} Status", f"{ele.name} Passengers"]
         self.elevator_log_df = pd.DataFrame(
             columns=elevator_log_columns
         )
@@ -83,6 +83,9 @@ class BuildingElevatorEngine:
             )
             self.elevator_log_df._set_value(
                 self.time, f"{elevator.name} Status", elevator.state.value
+            )
+            self.elevator_log_df._set_value(
+                self.time, f"{elevator.name} Passengers", ", ".join(elevator.passengers)
             )
 
     def run_simulation(self) -> tuple[pd.DataFrame, pd.DataFrame]:
