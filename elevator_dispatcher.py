@@ -1,9 +1,9 @@
-import operator
 from typing import Optional
 
 import numpy as np
 
-from models import Elevator, CallRequest, PlanUpdate, ElevatorStop
+from errors import DispatchError
+from models import Elevator, CallRequest, ElevatorStop
 
 
 class ElevatorDispatcher:
@@ -12,7 +12,7 @@ class ElevatorDispatcher:
 
     Input: CallRequest, Elevators
 
-    1. Finds the optimal point where the given call-request can be worked into each elevator
+    1. Finds the "optimal point" where the given call-request can be worked into each elevator's plan
         - The main simplification made here is that the call request will be tried to work into
         the existing elevator's directional plan. It would not alter the direction switches in the elevator's
         plan.
@@ -21,243 +21,217 @@ class ElevatorDispatcher:
     2. Compare the total-times for the request amongst all the elevators and pick the quickest elevator
         - Note that this is finding a local maxima. The wait times for the other requests already on the
         elevator's plan are not re-calculated and further optimized.
-        This prevents starvation
+        - This prevents starvation
 
     """
 
-    def __init__(self, elevators: list[Elevator], request: CallRequest):
+    def __init__(self, elevators: list[Elevator]):
         self.elevators = elevators
-        self.request = request
 
-    def get_elevator_and_plan_update_for_request(self) -> tuple[Elevator, PlanUpdate]:
-        total_time_dict: dict[Elevator, int] = {}
-        elevator_plan_update: dict[Elevator, PlanUpdate] = {}
+    def get_elevator_and_updated_plan_for_request(self, request: CallRequest) -> tuple[Elevator, list[ElevatorStop]]:
+        elevator_total_time_mapping: dict[Elevator, int] = {}
+        elevator_and_updated_plan_mapping: dict[Elevator, list[ElevatorStop]] = {}
         for elevator in self.elevators:
-            source_ind, target_ind = self.get_indices_in_elevator_plan_for_request(elevator)
-            total_time_dict[elevator] = self.get_total_time_for_request(
-                elevator.current_floor, elevator.elevator_plan,
-                source_ind, target_ind
+            new_elevator_plan = self.build_updated_elevator_plan_for_request_in_elevator(elevator, request)
+            elevator_total_time_mapping[elevator] = self.get_total_time_for_request(
+                current_floor=elevator.current_floor,
+                elevator_plan=new_elevator_plan,
+                request=request,
             )
-            elevator_plan_update[elevator] = PlanUpdate(source_index=source_ind, target_index=target_ind)
-        best_elevator: Elevator = min(total_time_dict, key=total_time_dict.get)
-        return best_elevator, elevator_plan_update[best_elevator]
+            elevator_and_updated_plan_mapping[elevator] = new_elevator_plan
+
+        elevator_with_least_total_time: Elevator = min(elevator_total_time_mapping, key=elevator_total_time_mapping.get)
+
+        return elevator_with_least_total_time, elevator_and_updated_plan_mapping[elevator_with_least_total_time]
 
     def get_total_time_for_request(
-            self, current_floor: int, elevator_plan: list[ElevatorStop], source_index: int,
-            target_index: int
+            self, current_floor: int, elevator_plan: list[ElevatorStop], request: CallRequest,
     ) -> int:
         return self.get_wait_time_for_request(
-            current_floor, elevator_plan, source_index
-        ) + self.get_travel_time_for_request(
-            elevator_plan,
-            source_index, target_index
-        )
+            request=request, elevator_plan=elevator_plan, current_floor=current_floor
+        ) + self.get_travel_time_for_request(request=request, elevator_plan=elevator_plan)
 
     def get_wait_time_for_request(
-            self, current_floor: int, elevator_plan: list[ElevatorStop], source_index: int
+            self, request: CallRequest, elevator_plan: list[ElevatorStop], current_floor: int,
     ) -> int:
         wait_time = 0
-        for i, stop in enumerate(elevator_plan[:source_index]):
-            wait_time += abs(stop.floor - (elevator_plan[i - 1].floor if i > 0 else current_floor)) + 1
-            # Note the additional +1 is one additional time unit for each prior stop
+        i = 0
+        while i < len(elevator_plan):
+            prev_floor = current_floor if i == 0 else elevator_plan[i - 1].floor
+            wait_time += abs(elevator_plan[i].floor - prev_floor)
+            if elevator_plan[i].floor == request.source_floor:
+                return wait_time
+            i += 1
+            wait_time += 1  # for the stop wait time
 
-        return wait_time + abs(
-            self.request.source_floor - (elevator_plan[source_index - 1].floor if source_index > 0 else current_floor)
-        )
+        raise DispatchError("Source floor not found in elevator's plan")
 
     def get_travel_time_for_request(
-            self, elevator_plan: list[ElevatorStop], source_index: int, target_index: int
+            self, request: CallRequest, elevator_plan: list[ElevatorStop]
     ) -> int:
-        """
-        This calculation can be visualized in three pieces:
-        1. Getting from Source Floor to the next stop in the plan
-        2. Getting through all the stops in the plan starting the from stop after the source floor
-            upto the floor just before the target floor
-        3. Getting from the stop right before the target floor to the target floor
+        travel_time = 0
+        i = 0
+        pickup_done = False
+        while i < len(elevator_plan):
+            if pickup_done:
+                travel_time += abs(elevator_plan[i].floor - elevator_plan[i - 1].floor)
+                travel_time += 1  # stop time for other floors
+            if elevator_plan[i].floor == request.target_floor:
+                travel_time -= 1  # remove stop time from target floor
+                return travel_time
+            if elevator_plan[i].floor == request.source_floor:
+                pickup_done = True
+            i += 1
 
-        Note that we have to do it this way, because the plan is not yet updated with the
-        request floors
-        """
-        if target_index == source_index + 1:
-            return abs(self.request.target_floor - self.request.source_floor)
+        raise DispatchError("Target floor not found in elevator's plan")
 
-        if target_index == source_index + 2:
-            return abs(
-                (elevator_plan[source_index].floor
-                 if source_index < len(elevator_plan)
-                 else self.request.target_floor)
-                - self.request.source_floor
-            ) + 1 + (  # the +1 is for the wait time at the stop
-                       abs(self.request.target_floor - elevator_plan[source_index].floor)
-                   )
-
-        # Piece 1: Source Floor to Next stop
-        travel_time = abs(
-            (elevator_plan[source_index].floor
-             if source_index < len(elevator_plan)
-             else self.request.target_floor)
-            - self.request.source_floor
-        ) + 1  # the +1 is for the wait time at the stop
-
-        # Piece 2: Source Floor Next Stop -> Floor right before target floor
-        for i in range(source_index + 1, min(len(elevator_plan), target_index)):
-            travel_time += abs(elevator_plan[i].floor - elevator_plan[i - 1].floor) + 1
-            # Note that the +1 is added for the wait time at that stop
-
-        # Piece 3: Floor right before target floor -> target floor
-        if target_index < len(elevator_plan):
-            travel_time += abs(self.request.target_floor - elevator_plan[target_index - 1].floor)
-        elif target_index >= len(elevator_plan):
-            travel_time += abs(self.request.target_floor - elevator_plan[-1].floor)
-        return travel_time
-
-    def get_indices_in_elevator_plan_for_request(
-            self, elevator: Elevator,
-    ) -> tuple[int, int]:
+    def build_updated_elevator_plan_for_request_in_elevator(
+            self, elevator: Elevator, request: CallRequest,
+    ) -> list[ElevatorStop]:
         """
         :param elevator_plan: list of stops
         :param request: Call request
         :return:
         """
-        request_diff = self.request.target_floor - self.request.source_floor
-        request_dir = np.sign(request_diff)
-        if elevator.elevator_plan and elevator.current_floor == elevator.elevator_plan[0].floor:
+
+        source_stop = ElevatorStop(
+            floor=request.source_floor,
+            pickup_requests=[request],
+            dropoff_requests=[],
+        )
+        target_stop = ElevatorStop(
+            floor=request.target_floor,
+            pickup_requests=[],
+            dropoff_requests=[request],
+        )
+
+        if not elevator.elevator_plan:
+            new_elevator_plan = [
+                source_stop, target_stop,
+            ]
+            return new_elevator_plan
+
+        if elevator.current_floor == elevator.elevator_plan[0].floor:
             current_floor_is_first_stop = True
-            elevator_floor_plan = [stop.floor for stop in elevator.elevator_plan]
+            current_floor_stop_repr = []
         else:
             current_floor_is_first_stop = False
-            elevator_floor_plan = [elevator.current_floor] + [stop.floor for stop in elevator.elevator_plan]
+            current_floor_stop_repr = [ElevatorStop(
+                floor=elevator.current_floor,
+                pickup_requests=[],
+                dropoff_requests=[],
+            )]
 
-        if len(elevator_floor_plan) <= 1:
-            return 0, 1  # add to beginning of plan,
+        if len(elevator.elevator_plan) == 1 and current_floor_is_first_stop:
+            new_elevator_plan = elevator.elevator_plan + [
+                source_stop, target_stop,
+            ]
+            return new_elevator_plan
+
+        if not current_floor_is_first_stop:
+            current_elevator_plan = current_floor_stop_repr + elevator.elevator_plan
+        else:
+            current_elevator_plan = elevator.elevator_plan
+
+        request_dir = np.sign(request.target_floor - request.source_floor)
 
         # Slice the plan into ordered subplans
-        sorted_subplans = self.split_plan_into_ordered_subplans(elevator_floor_plan)
+        sorted_subplans = self.split_plan_into_ordered_subplans(current_elevator_plan)
 
         # evaluate each subplan to assess if the request can be worked into it
-        current_floor_adj = -1 if not current_floor_is_first_stop else 0
-        matching_subplan, index_delta = self._find_matching_subplan_for_request(
-            index_delta=current_floor_adj, sorted_subplans=sorted_subplans
+        matching_subplan, matching_subplan_loc = self.find_matching_subplan_for_request(
+            sorted_subplans=sorted_subplans, request=request
         )
 
         # if no appropriate subplan is found, tack this request to the end of the plan
         if not matching_subplan:
-            return len(elevator_floor_plan) + current_floor_adj, len(elevator_floor_plan) + current_floor_adj + 1
+            new_elevator_plan = elevator.elevator_plan + [source_stop, target_stop]
+            return new_elevator_plan
 
-        # if subplan is found, then correctly insert this request into that subplan
-        source_index, target_index = self.find_insertion_points_in_array(
-            sorted_subplan=matching_subplan,
-            source_floor=self.request.source_floor,
-            target_floor=self.request.target_floor,
-            dir=request_dir
-        )
-        source_index += index_delta
-        target_index += index_delta
+        # if subplan is found, then insert this request into that subplan
+        matching_subplan += [source_stop, target_stop]
+        matching_subplan.sort(reverse=True if request_dir == -1 else False, key=lambda stop: stop.floor)
 
-        if not self.check_capacity(source_index=source_index, target_index=target_index, elevator=elevator):
-            return len(elevator_floor_plan) + current_floor_adj, len(elevator_floor_plan) + current_floor_adj + 1
+        # coalesce the subplan - combine duplicate floors
+        self.coalesce_plan(elevator_plan=matching_subplan)  # this does it in place
 
-        return source_index, target_index
+        # create the new full elevator plan  by rejoining subplans
+        new_elevator_plan = []
+        for i, subplan in enumerate(sorted_subplans):
+            new_elevator_plan += matching_subplan if i == matching_subplan_loc else subplan
+
+        # Coalesce the updated full elevator plan
+        self.coalesce_plan(elevator_plan=new_elevator_plan)
+
+        # Remove the current floor repr from the plan
+        if new_elevator_plan[0] == current_floor_stop_repr:
+            new_elevator_plan = new_elevator_plan[1:]
+
+        # Check capacity
+        if not self.check_capacity(elevator=elevator, new_elevator_plan=new_elevator_plan):
+            new_elevator_plan = elevator.elevator_plan + [source_stop, target_stop]
+            return new_elevator_plan
+
+        return new_elevator_plan
 
     @staticmethod
-    def check_capacity(source_index, target_index, elevator: Elevator) -> bool:
-        current_passenger_count = len(elevator.passengers)
-        for stop in elevator.elevator_plan[:source_index]:
-            current_passenger_count += (len(stop.pickup_requests) - len(stop.dropoff_requests))
-            if current_passenger_count > elevator.capacity:
-                print("reached capacity")
-                return False
+    def coalesce_plan(elevator_plan: list[ElevatorStop]) -> list[ElevatorStop]:
+        indices_to_remove = []
+        i = 0
+        while i < len(elevator_plan) - 1:
+            if elevator_plan[i].floor == elevator_plan[i + 1].floor:
+                elevator_plan[i].pickup_requests = list(
+                    set(elevator_plan[i].pickup_requests).union(set(elevator_plan[i + 1].pickup_requests))
+                )
+                elevator_plan[i].dropoff_requests = list(
+                    set(elevator_plan[i].dropoff_requests).union(set(elevator_plan[i + 1].dropoff_requests))
+                )
+                indices_to_remove.append(i + 1)
+                i += 1
+            i += 1
 
-        current_passenger_count += 1  # for the source floor
-        if current_passenger_count > elevator.capacity:
-            print("reached capacity")
-            return False
-        for stop in elevator.elevator_plan[source_index:target_index]:
+        for index in indices_to_remove[::-1]:
+            del elevator_plan[index]
+
+        return elevator_plan
+
+    @staticmethod
+    def check_capacity(elevator: Elevator, new_elevator_plan: list[ElevatorStop]) -> bool:
+        current_passenger_count = len(elevator.passengers)
+        for stop in new_elevator_plan:
             current_passenger_count += (len(stop.pickup_requests) - len(stop.dropoff_requests))
             if current_passenger_count > elevator.capacity:
-                print("reached capacity")
                 return False
         return True
 
     @staticmethod
-    def find_insertion_points_in_array(
-            sorted_subplan: list[int], source_floor: int, target_floor: int, dir: int,
-    ) -> tuple[int, int]:
-        if dir == 1:
-            comparison_operator = operator.le
-            strict_comparison_operator = operator.lt
-        elif dir == -1:
-            comparison_operator = operator.ge
-            strict_comparison_operator = operator.gt
-        else:
-            raise Exception("Unknown direction")
+    def split_plan_into_ordered_subplans(elevator_plan: list[ElevatorStop]) -> list[list[ElevatorStop]]:
+        if len(elevator_plan) < 2:
+            raise DispatchError("Plan is too small to split")
 
-        if sorted(sorted_subplan, reverse=True if dir == -1 else False) != sorted_subplan:
-            raise Exception("Subplan is not sorted")
-
-        source_index = None
-        target_index = None
-        source_already_in_plan_flag = False
-        for i in range(len(sorted_subplan)):
-            if comparison_operator(source_floor, sorted_subplan[i]):
-                if strict_comparison_operator(source_floor, sorted_subplan[i]) and i == 0:
-                    raise Exception("Logic Failing - source floor not in subplan range")
-                source_index = i
-                if source_floor == sorted_subplan[i]:
-                    source_already_in_plan_flag = True
-                break
-
-        if source_index is None:
-            raise Exception("Logic Failing - source floor not in subplan range")
-
-        for i in range(max(source_index - 1, 0), len(sorted_subplan)):
-            if comparison_operator(target_floor, sorted_subplan[i]):
-                target_index = i
-                break
-
-        if target_index is None:
-            raise Exception("Logic Failing - target floor not in subplan range")
-
-        if not source_already_in_plan_flag:
-            target_index += 1  # adjusting for the adding of the source floor
-
-        return source_index, target_index
-
-    @staticmethod
-    def split_plan_into_ordered_subplans(plan: list[int]) -> list[list]:
-        if len(plan) < 2:
-            raise Exception("Plan is too small to split; logical inconsistency")
         inflection_points = []
-        dir = np.sign(plan[1] - plan[0])
-        for i in range(1, len(plan) - 1):
-            if np.sign(plan[i + 1] - plan[i]) != dir:
+        elevator_direction = np.sign(elevator_plan[1].floor - elevator_plan[0].floor)
+        for i in range(1, len(elevator_plan) - 1):
+            if np.sign(elevator_plan[i + 1].floor - elevator_plan[i].floor) != elevator_direction:
                 inflection_points.append(i + 1)
-                dir = np.sign(plan[i + 1] - plan[i])
-        inflection_points.append(len(plan))
+                elevator_direction = np.sign(elevator_plan[i + 1].floor - elevator_plan[i].floor)
+        inflection_points.append(len(elevator_plan))
         sorted_subplans = []
         start = 0
         for ind in inflection_points:
-            sorted_subplans.append(plan[start:ind])
+            sorted_subplans.append(elevator_plan[start:ind])
             start = ind - 1
 
         return sorted_subplans
 
-    def _find_matching_subplan_for_request(
-            self, index_delta: int, sorted_subplans: list[list]
-    ) -> tuple[Optional[list], int]:
-        request_dir = np.sign(self.request.target_floor - self.request.source_floor)
-        matching_subplan = None
-        for subplan in sorted_subplans:
-            subplan_dir = np.sign(subplan[-1] - subplan[0])
-            if subplan_dir != request_dir:
-                index_delta += len(subplan) - 1
-                continue
-            subplan_set = set(range(subplan[0], subplan[-1], subplan_dir))
-            request_set = set(range(self.request.source_floor, self.request.target_floor, request_dir))
-            if not request_set.issubset(subplan_set):
-                index_delta += len(subplan) - 1
-                continue
-            matching_subplan = subplan
-            break
-
-        return matching_subplan, index_delta
+    def find_matching_subplan_for_request(
+            self, sorted_subplans: list[list[ElevatorStop]], request: CallRequest
+    ) -> tuple[Optional[list[ElevatorStop]], Optional[int]]:
+        request_dir = np.sign(request.target_floor - request.source_floor)
+        for i, subplan in enumerate(sorted_subplans):
+            subplan_dir = np.sign(subplan[-1].floor - subplan[0].floor)
+            subplan_set = set(range(subplan[0].floor, subplan[-1].floor, subplan_dir))
+            request_set = set(range(request.source_floor, request.target_floor, request_dir))
+            if subplan_dir == request_dir and request_set.issubset(subplan_set):
+                return subplan, i
+        return None, None

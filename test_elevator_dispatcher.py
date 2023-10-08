@@ -1,471 +1,612 @@
 import pytest
+from pytest_unordered import unordered
 
 from elevator_dispatcher import ElevatorDispatcher
-from models import ElevatorStop, CallRequest, Building
+from models import ElevatorStop, CallRequest, Elevator
 
 
 class TestSplitPlanIntoOrderedSubplans:
-    def setup_method(self):
-        self.empty_plan = []
-        self.plan_with_too_few_stops = [4]
-        self.plan_with_single_inflection = [2, 4, 6, 8, 7]
-        self.plan_with_multiple_inflections = [8, 5, 7, 9, 14, 12, 10, 1, 5]
-
     def test_bad_input_raises_error(self):
-        self.setup_method()
+        plan_with_too_few_stops = [
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[], )
+        ]
+        empty_plan = []
         with pytest.raises(Exception) as exc_info:
             ElevatorDispatcher.split_plan_into_ordered_subplans(
-                self.empty_plan
+                empty_plan
             )
         assert exc_info.value.args[0] == "Plan is too small to split; logical inconsistency"
 
         with pytest.raises(Exception) as exc_info:
             ElevatorDispatcher.split_plan_into_ordered_subplans(
-                self.plan_with_too_few_stops
+                plan_with_too_few_stops
             )
         assert exc_info.value.args[0] == "Plan is too small to split; logical inconsistency"
 
     def test_single_infection(self):
-        self.setup_method()
+        plan_with_single_inflection = [
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+        ]
         subplans = ElevatorDispatcher.split_plan_into_ordered_subplans(
-            self.plan_with_single_inflection
+            plan_with_single_inflection
         )
-
         expected_subplans = [
-            [2, 4, 6, 8],
-            [8, 7],
+            [
+                ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ],
+            [
+                ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+            ],
         ]
 
         assert subplans == expected_subplans
 
     def test_multiple_infections(self):
-        self.setup_method()
+        plan_with_multiple_inflections = [
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=9, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=14, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=12, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=10, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=1, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[]),
+        ]
         subplans = ElevatorDispatcher.split_plan_into_ordered_subplans(
-            self.plan_with_multiple_inflections
+            plan_with_multiple_inflections
         )
 
         expected_subplans = [
-            [8, 5, ],
-            [5, 7, 9, 14, ],
-            [14, 12, 10, 1, ],
-            [1, 5, ],
+            [
+                ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[]),
+            ],
+            [
+                ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=9, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=14, pickup_requests=[], dropoff_requests=[]),
+            ],
+            [
+                ElevatorStop(floor=14, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=12, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=10, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=1, pickup_requests=[], dropoff_requests=[]),
+            ],
+            [
+                ElevatorStop(floor=1, pickup_requests=[], dropoff_requests=[]),
+                ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[]),
+            ],
         ]
 
         assert subplans == expected_subplans
 
 
-class TestFindInsertionPointsInArray:
-    def test_raises_if_dir_is_improperly_set(self):
-        unsorted_plan = [8, 5, 7, 9, 14, 12, 10, 1, 5]
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=unsorted_plan,
-                source_floor=1,
-                target_floor=4,
-                dir=-5
-            )
+class TestCoalescePlan:
 
-        assert exc_info.value.args[0] == "Unknown direction"
-
-    def test_raises_if_subplan_not_sorted(self):
-        unsorted_plan = [8, 5, 7, 9, 14, 12, 10, 1, 5]
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=unsorted_plan,
-                source_floor=1,
-                target_floor=4,
-                dir=-1
-            )
-
-        assert exc_info.value.args[0] == "Subplan is not sorted"
-
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=unsorted_plan,
-                source_floor=1,
-                target_floor=4,
-                dir=1
-            )
-
-        assert exc_info.value.args[0] == "Subplan is not sorted"
-
-    def test_raises_if_source_floor_not_in_subplan_range(self):
-        sorted_asc_plan = [5, 7, 9, 14]
-        sorted_desc_plan = [14, 12, 10, 3]
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_asc_plan,
-                source_floor=1,
-                target_floor=4,
-                dir=1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - source floor not in subplan range"
-
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_asc_plan,
-                source_floor=15,
-                target_floor=25,
-                dir=1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - source floor not in subplan range"
-
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_desc_plan,
-                source_floor=15,
-                target_floor=10,
-                dir=-1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - source floor not in subplan range"
-
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_desc_plan,
-                source_floor=2,
-                target_floor=1,
-                dir=-1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - source floor not in subplan range"
-
-    def test_raises_if_target_floor_not_in_subplan_range(self):
-        sorted_asc_plan = [5, 7, 9, 14]
-        sorted_desc_plan = [14, 12, 10, 3]
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_asc_plan,
-                source_floor=8,
-                target_floor=15,
-                dir=1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - target floor not in subplan range"
-
-        with pytest.raises(Exception) as exc_info:
-            ElevatorDispatcher.find_insertion_points_in_array(
-                sorted_subplan=sorted_desc_plan,
-                source_floor=15,
-                target_floor=10,
-                dir=-1
-            )
-
-        assert exc_info.value.args[0] == "Logic Failing - source floor not in subplan range"
-
-    def test_correct_returned_indices_for_asc_plan(self):
-        sorted_asc_plan_1 = [5, 7, 9, 14]
-        sorted_asc_plan_2 = [5, 9]
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_asc_plan_1,
-            source_floor=8,
-            target_floor=14,
-            dir=1
-        )
-        assert source_index == 2
-        assert target_index == 4
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_asc_plan_1,
-            source_floor=7,
-            target_floor=14,
-            dir=1
-        )
-        assert source_index == 1
-        assert target_index == 3
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_asc_plan_2,
-            source_floor=6,
-            target_floor=7,
-            dir=1
-        )
-        assert source_index == 1
-        assert target_index == 2
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_asc_plan_2,
-            source_floor=5,
-            target_floor=7,
-            dir=1
-        )
-        assert source_index == 0
-        assert target_index == 1
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_asc_plan_2,
-            source_floor=5,
-            target_floor=9,
-            dir=1
-        )
-        assert source_index == 0
-        assert target_index == 1
-
-    def test_correct_returned_indices_for_desc_plan(self):
-        sorted_desc_plan_1 = [29, 14, 13, 1]
-        sorted_desc_plan_2 = [14, 1]
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_desc_plan_1,
-            source_floor=16,
-            target_floor=8,
-            dir=-1
-        )
-        assert source_index == 1
-        assert target_index == 4
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_desc_plan_1,
-            source_floor=14,
-            target_floor=13,
-            dir=-1
-        )
-        assert source_index == 1
-        assert target_index == 2
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_desc_plan_2,
-            source_floor=7,
-            target_floor=5,
-            dir=-1
-        )
-        assert source_index == 1
-        assert target_index == 2
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_desc_plan_2,
-            source_floor=7,
-            target_floor=1,
-            dir=-1
-        )
-        assert source_index == 1
-        assert target_index == 2
-
-        source_index, target_index = ElevatorDispatcher.find_insertion_points_in_array(
-            sorted_subplan=sorted_desc_plan_2,
-            source_floor=14,
-            target_floor=7,
-            dir=-1
-        )
-        assert source_index == 0
-        assert target_index == 1
-
-
-class TestGetWaitTimeForRequest:
-    def setup_method(self):
-        self.building = Building(
-            number_of_floors=25,
-            number_of_elevators=3,
-            max_capacity_of_elevator=10,
-        )
-        self.elevator_dispatcher = ElevatorDispatcher(
-            elevators=self.building.elevators,
-            request=CallRequest(
-                time=10,
-                id="test",
-                source_floor=3,
-                target_floor=5,
-            )
-        )
-
-        self.elevator_dispatcher_2 = ElevatorDispatcher(
-            elevators=self.building.elevators,
-            request=CallRequest(
-                time=10,
-                id="test_2",
-                source_floor=14,
-                target_floor=5,
-            )
-        )
-
-    def test_elevator_already_at_stop(self):
-        elevator_plan = []
-        current_floor = 3
-        source_index = 0  # New plan: (curr_floor: 3), 3
-
-        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
-        )
-
-        assert wait_time == 0
-
-    def test_calculates_wait_time_correctly(self):
-        elevator_plan = [
-            ElevatorStop(5, [], []),
-            ElevatorStop(7, [], []),
-            ElevatorStop(9, [], []),
-            ElevatorStop(8, [], []),
-            ElevatorStop(13, [], []),
-            ElevatorStop(2, [], []),
-            ElevatorStop(5, [], []),
-        ]  # len: 7
-        current_floor = 3
-        source_index = 6  # New plan: (curr_floor: 3), 5, 7, 9, 8, 13, 2, ->3<-, 5
-
-        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
-        )
-        assert wait_time == 30
-
-        current_floor = 3
-        source_index = 7  # New plan: (curr_floor: 3), 5, 7, 9, 8, 13, 2, 5, ->3<-
-
-        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
-        )
-        assert wait_time == 35
-
-        current_floor = 3
-        source_index = 0  # New plan: (curr_floor: 3), ->3<-, 5, 7, 9, 8, 13, 2, 5
-
-        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
-        )
-        assert wait_time == 0
-
-    def test_calculates_wait_time_correctly_2(self):
-        elevator_plan = [
-            ElevatorStop(9, [], []),
+    def test_plan_with_no_duplicates(self):
+        plan = [
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
         ]
-        current_floor = 3
-        source_index = 1  # New plan: (curr_floor: 3),  9, ->14<-
+        new_plan = ElevatorDispatcher.coalesce_plan(elevator_plan=plan)
 
-        wait_time = self.elevator_dispatcher_2.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
-        )
-        assert wait_time == 12
+        assert new_plan == plan
 
-        elevator_plan.append(
-            ElevatorStop(25, [], []),
+    def test_plan_with_one_duplicates(self):
+        call_req_a = CallRequest(
+            source_floor=3, target_floor=5, time=10, id="A"
         )
-        current_floor = 3
-        source_index = 1  # New plan: (curr_floor: 3),  9, ->14<-, 25
-        wait_time = self.elevator_dispatcher_2.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
+        call_req_b = CallRequest(
+            source_floor=43, target_floor=9, time=10, id="B"
         )
-        assert wait_time == 12
+        call_req_c = CallRequest(
+            source_floor=7, target_floor=19, time=10, id="C"
+        )
 
-        current_floor = 9
-        source_index = 1  # New plan: (curr_floor: 9),  9, ->14<-, 25
-        wait_time = self.elevator_dispatcher_2.get_wait_time_for_request(
-            elevator_plan=elevator_plan, current_floor=current_floor, source_index=source_index
+        plan = [
+            ElevatorStop(floor=2, pickup_requests=[call_req_a], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[call_req_c], dropoff_requests=[call_req_b]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        ElevatorDispatcher.coalesce_plan(elevator_plan=plan)
+
+        assert plan == [
+            ElevatorStop(floor=2, pickup_requests=[call_req_a, call_req_c], dropoff_requests=[call_req_b]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+    def test_coalesce_multiple_duplicates(self):
+        call_req_a = CallRequest(
+            source_floor=3, target_floor=5, time=10, id="A"
         )
-        assert wait_time == 6
+        call_req_b = CallRequest(
+            source_floor=43, target_floor=9, time=10, id="B"
+        )
+        call_req_c = CallRequest(
+            source_floor=7, target_floor=19, time=10, id="C"
+        )
+        call_req_d = CallRequest(
+            source_floor=7, target_floor=19, time=10, id="D"
+        )
+        call_req_e = CallRequest(
+            source_floor=7, target_floor=19, time=10, id="E"
+        )
+        call_req_f = CallRequest(
+            source_floor=7, target_floor=19, time=10, id="F"
+        )
+        plan = [
+            ElevatorStop(floor=2, pickup_requests=[call_req_a], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[call_req_c], dropoff_requests=[call_req_b]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[call_req_a]),
+            ElevatorStop(floor=6, pickup_requests=[call_req_d], dropoff_requests=[call_req_c]),
+            ElevatorStop(floor=7, pickup_requests=[call_req_e], dropoff_requests=[call_req_d]),
+            ElevatorStop(floor=7, pickup_requests=[call_req_f], dropoff_requests=[]),
+        ]
+
+        ElevatorDispatcher.coalesce_plan(elevator_plan=plan)
+
+        assert plan == unordered(
+            [
+                ElevatorStop(floor=2, pickup_requests=[call_req_a, call_req_c], dropoff_requests=[call_req_b]),
+                ElevatorStop(floor=6, pickup_requests=[call_req_d], dropoff_requests=[call_req_a, call_req_c]),
+                ElevatorStop(floor=7, pickup_requests=[call_req_e, call_req_f], dropoff_requests=[call_req_d]),
+            ]
+        )
+
+
+class TestCheckCapacity:
+    @pytest.fixture()
+    def setUp(self):
+        self.elevator_dispatcher = ElevatorDispatcher(
+            elevators=[
+                Elevator(
+                    state=Elevator.ElevatorState.moving_upwards,
+                    name="Ele 1",
+                    current_floor=3,
+                    max_capacity_of_elevator=2,
+                ),
+                Elevator(
+                    state=Elevator.ElevatorState.idle,
+                    name="Ele 2",
+                    current_floor=13,
+                    max_capacity_of_elevator=5,
+                )
+            ]
+        )
+        self.mock_request = CallRequest(
+            source_floor=5,
+            target_floor=3,
+            id='pass_test',
+            time=10,
+        )
+        self.elevator = self.elevator_dispatcher.elevators[0]
+
+    def test_check_capacity_within_capacity(self, setUp):
+        # Test when the elevator has enough capacity for the new plan
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[self.mock_request, self.mock_request, self.mock_request], dropoff_requests=[self.mock_request]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        result = self.elevator_dispatcher.check_capacity(self.elevator, elevator_plan)
+        assert result is True
+
+    def test_check_capacity_exceeds_capacity(self, setUp):
+        # Test when the new plan exceeds the elevator's capacity
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[self.mock_request, ], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[self.mock_request, self.mock_request, self.mock_request], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        result = self.elevator_dispatcher.check_capacity(self.elevator, elevator_plan)
+        assert result is False
+
+    def test_check_capacity_empty_plan(self, setUp):
+        # Test when the elevator plan is empty (no passengers)
+        elevator_plan = []
+
+        result = self.elevator_dispatcher.check_capacity(self.elevator, elevator_plan)
+        assert result is True
+
+
+
+class TestFindMatchingSubplanForRequest:
+    pass
+
+
+class TestBuildUpdatedPlanForRequestInElevator:
+    @pytest.fixture()
+    def setUp(self):
+        self.elevator_dispatcher = ElevatorDispatcher(
+            elevators=[
+                Elevator(
+                    state=Elevator.ElevatorState.moving_upwards,
+                    name="Ele 1",
+                    current_floor=3,
+                    max_capacity_of_elevator=5,
+                ),
+                Elevator(
+                    state=Elevator.ElevatorState.idle,
+                    name="Ele 2",
+                    current_floor=13,
+                    max_capacity_of_elevator=5,
+                )
+            ]
+        )
+
+    def test_updated_plan_in_between(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+        self.elevator_dispatcher.elevators[0].elevator_plan = elevator_plan
+        request = CallRequest(
+            source_floor=5,
+            target_floor=3,
+            id='pass_test',
+            time=10,
+        )
+        updated_plan = self.elevator_dispatcher.build_updated_elevator_plan_for_request_in_elevator(
+            elevator=self.elevator_dispatcher.elevators[0],
+            request=request,
+        )
+
+        assert updated_plan == [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[request]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+    def test_updated_plan_source_same_as_current_floor(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+        self.elevator_dispatcher.elevators[0].elevator_plan = elevator_plan
+        request = CallRequest(
+            source_floor=3,
+            target_floor=7,
+            id='pass_test',
+            time=10,
+        )
+        updated_plan = self.elevator_dispatcher.build_updated_elevator_plan_for_request_in_elevator(
+            elevator=self.elevator_dispatcher.elevators[0],
+            request=request,
+        )
+
+        assert updated_plan == [
+            ElevatorStop(floor=3, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[request]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+    def test_updated_plan_at_end_of_plan(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+        self.elevator_dispatcher.elevators[0].elevator_plan = elevator_plan
+        request = CallRequest(
+            source_floor=1,
+            target_floor=7,
+            id='pass_test',
+            time=10,
+        )
+        updated_plan = self.elevator_dispatcher.build_updated_elevator_plan_for_request_in_elevator(
+            elevator=self.elevator_dispatcher.elevators[0],
+            request=request,
+        )
+
+        assert updated_plan == [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=1, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[request]),
+        ]
 
 
 class TestGetTravelTimeForRequest:
-    def setup_method(self):
-        self.building = Building(
-            number_of_floors=25,
-            number_of_elevators=3,
-            max_capacity_of_elevator=10,
-        )
+    @pytest.fixture()
+    def setUp(self):
         self.elevator_dispatcher = ElevatorDispatcher(
-            elevators=self.building.elevators,
-            request=CallRequest(
-                time=10,
-                id="test",
-                source_floor=3,
-                target_floor=5,
-            )
+            elevators=[
+                Elevator(
+                    state=Elevator.ElevatorState.moving_upwards,
+                    name="Ele 1",
+                    current_floor=3,
+                    max_capacity_of_elevator=5,
+                ),
+                Elevator(
+                    state=Elevator.ElevatorState.idle,
+                    name="Ele 2",
+                    current_floor=13,
+                    max_capacity_of_elevator=5,
+                )
+            ]
         )
 
-        self.elevator_dispatcher_2 = ElevatorDispatcher(
-            elevators=self.building.elevators,
-            request=CallRequest(
-                time=10,
-                id="test_2",
-                source_floor=14,
-                target_floor=5,
-            )
-        )
-
-    def test_elevator_already_at_stop(self):
-        elevator_plan = []
-        source_index = 0
-        target_index = 1  # New plan: (curr_floor: 3), 3, 5
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-
-        assert travel_time == 2
-
-    def test_calculates_travel_time_correctly(self):
+    def test_travel_time_correct_current_floor_is_first_stop_and_source_floor(self, setUp):
         elevator_plan = [
-            ElevatorStop(5, [], []),
-            ElevatorStop(7, [], []),
-            ElevatorStop(9, [], []),
-            ElevatorStop(8, [], []),
-            ElevatorStop(13, [], []),
-            ElevatorStop(2, [], []),
-            ElevatorStop(5, [], []),
-        ]  # len: 7
-        source_index = 5
-        target_index = 7  # New plan: (curr_floor: 3), 5, 7, 9, 8, 13, ->3<-, 2, ->5<-
-
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert 5 == travel_time
-
-        source_index = 7
-        target_index = 8  # New plan: (curr_floor: 3), 5, 7, 9, 8, 13, 2, 5, ->3<-, ->5<-
-
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert 2 == travel_time
-
-        source_index = 0
-        target_index = 1  # New plan: (curr_floor: 3) ->3<-, ->5<-, 7, 9, 8, 13, 2,
-
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert 2 == travel_time
-
-        source_index = 2
-        target_index = 5  # New plan: (curr_floor: 3) 5, 7, ->3<-, 9, 8, 13, ->5<-,  2,
-
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert travel_time == 23
-
-        source_index = 2
-        target_index = 6  # New plan: (curr_floor: 3) 5, 7, ->3<-, 9, 8, 13, 2, ->5<-
-
-        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert travel_time == 30
-
-    def test_calculates_travel_time_correctly_2(self):
-        elevator_plan = [
-            ElevatorStop(9, [], []),
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
         ]
-        source_index = 1
-        target_index = 2  # New plan: 9, =>14<=, =>5<=,
 
-        travel_time = self.elevator_dispatcher_2.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
+        request = CallRequest(
+            source_floor=3,
+            target_floor=2,
+            id='pass_test',
+            time=10,
         )
+
+        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
+            elevator_plan=elevator_plan,
+            request=request
+        )
+
         assert travel_time == 9
 
-        elevator_plan.append(
-            ElevatorStop(25, [], []),
+        request = CallRequest(
+            source_floor=3,
+            target_floor=4,
+            id='pass_test',
+            time=10,
         )
-        source_index = 1
-        target_index = 3  # New plan: 9, =>14<=, 25, =>5<=
-        travel_time = self.elevator_dispatcher_2.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
-        )
-        assert travel_time == 32
 
-        source_index = 0
-        target_index = 2  # New plan: =>14<=, 9, =>5<=, 25
-        travel_time = self.elevator_dispatcher_2.get_travel_time_for_request(
-            elevator_plan=elevator_plan, source_index=source_index, target_index=target_index
+        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
+            elevator_plan=elevator_plan,
+            request=request
         )
-        assert travel_time == 10
+
+        assert travel_time == 1
+
+    def test_wait_time_correct_general(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        request = CallRequest(
+            source_floor=6,
+            target_floor=2,
+            id='pass_test',
+            time=10,
+        )
+
+        travel_time = self.elevator_dispatcher.get_travel_time_for_request(
+            elevator_plan=elevator_plan,
+            request=request
+        )
+
+        assert travel_time == 4
+
+
+class TestGetWaitTimeForRequest:
+    @pytest.fixture()
+    def setUp(self):
+        self.elevator_dispatcher = ElevatorDispatcher(
+            elevators=[
+                Elevator(
+                    state=Elevator.ElevatorState.moving_upwards,
+                    name="Ele 1",
+                    current_floor=3,
+                    max_capacity_of_elevator=5,
+                ),
+                Elevator(
+                    state=Elevator.ElevatorState.idle,
+                    name="Ele 2",
+                    current_floor=13,
+                    max_capacity_of_elevator=5,
+                )
+            ]
+        )
+
+    def test_wait_time_correct_current_floor_is_first_stop(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        request = CallRequest(
+            source_floor=6,
+            target_floor=2,
+            id='pass_test',
+            time=10,
+        )
+
+        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
+            elevator_plan=elevator_plan,
+            current_floor=3,
+            request=request
+        )
+
+        assert wait_time == 5
+
+        request = CallRequest(
+            source_floor=3,
+            target_floor=6,
+            id='pass_test',
+            time=10,
+        )
+
+        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
+            elevator_plan=elevator_plan,
+            current_floor=3,
+            request=request
+        )
+
+        assert wait_time == 0
+
+    def test_wait_time_correct_general(self, setUp):
+        elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        request = CallRequest(
+            source_floor=6,
+            target_floor=2,
+            id='pass_test',
+            time=10,
+        )
+
+        wait_time = self.elevator_dispatcher.get_wait_time_for_request(
+            elevator_plan=elevator_plan,
+            current_floor=2,
+            request=request
+        )
+
+        assert wait_time == 6
+
+
+class TestGetElevatorAndUpdatedPlanForRequest:
+    @pytest.fixture()
+    def setUp(self):
+        self.elevator_dispatcher = ElevatorDispatcher(
+            elevators=[
+                Elevator(
+                    state=Elevator.ElevatorState.moving_upwards,
+                    name="Ele 1",
+                    current_floor=3,
+                    max_capacity_of_elevator=5,
+                ),
+                Elevator(
+                    state=Elevator.ElevatorState.idle,
+                    name="Ele 2",
+                    current_floor=13,
+                    max_capacity_of_elevator=5,
+                )
+            ]
+        )
+        self.elevator_dispatcher.elevators[0].elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+        self.elevator_dispatcher.elevators[1].elevator_plan = []
+
+    def test_gets_elevator_with_least_time_for_idle(self, setUp):
+        request = CallRequest(
+            source_floor=11,
+            target_floor=3,
+            id='pass_test',
+            time=10,
+        )
+        elevator, updated_plan = self.elevator_dispatcher.get_elevator_and_updated_plan_for_request(request=request)
+
+        assert elevator == self.elevator_dispatcher.elevators[1]
+        assert updated_plan == [
+            ElevatorStop(floor=11, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[request]),
+        ]
+
+    def test_gets_elevator_with_least_time_for_moving(self, setUp):
+        request = CallRequest(
+            source_floor=5,
+            target_floor=7,
+            id='pass_test',
+            time=10,
+        )
+        elevator, updated_plan = self.elevator_dispatcher.get_elevator_and_updated_plan_for_request(request=request)
+
+        assert elevator == self.elevator_dispatcher.elevators[0]
+        assert updated_plan == [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[request]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+    def test_elevator_choice_switches_with_change_of_elevator_plan(self, setUp):
+        self.elevator_dispatcher.elevators[0].elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        request = CallRequest(
+            source_floor=1,
+            target_floor=5,
+            id='pass_test',
+            time=10,
+        )
+
+        elevator, updated_plan = self.elevator_dispatcher.get_elevator_and_updated_plan_for_request(request=request)
+
+        assert elevator == self.elevator_dispatcher.elevators[0]
+        assert updated_plan == [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=1, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[request]),
+        ]
+
+        self.elevator_dispatcher.elevators[0].elevator_plan = [
+            ElevatorStop(floor=3, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
+            ElevatorStop(floor=2, pickup_requests=[], dropoff_requests=[]),
+        ]
+
+        elevator, updated_plan = self.elevator_dispatcher.get_elevator_and_updated_plan_for_request(request=request)
+
+        assert elevator == self.elevator_dispatcher.elevators[1]
+        assert updated_plan == [
+            ElevatorStop(floor=1, pickup_requests=[request], dropoff_requests=[]),
+            ElevatorStop(floor=5, pickup_requests=[], dropoff_requests=[request]),
+        ]

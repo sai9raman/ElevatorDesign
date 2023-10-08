@@ -1,49 +1,19 @@
 ,Ele 1 Floor,Ele 1 Status,Ele 1 Passengers,Ele 2 Floor,Ele 2 Status,Ele 2 Passengers
 -1,1,idle,,1,idle,
-0,1,at_stop,passenger1,1,idle,
-1,2,moving_upwards,passenger1,1,idle,
-2,3,moving_upwards,passenger1,1,idle,
-3,4,moving_upwards,passenger1,2,moving_upwards,
-4,5,moving_upwards,passenger1,3,moving_upwards,
-5,6,moving_upwards,passenger1,4,moving_upwards,
-6,7,moving_upwards,passenger1,4,at_stop,passenger3
-7,8,moving_upwards,passenger1,5,moving_upwards,passenger3
-8,8,at_stop,,6,moving_upwards,passenger3
-9,9,moving_upwards,,7,moving_upwards,passenger3
-10,9,at_stop,passenger2,8,moving_upwards,passenger3
-11,8,moving_downwards,passenger2,9,moving_upwards,passenger3
-12,7,moving_downwards,passenger2,10,moving_upwards,passenger3
-13,6,moving_downwards,passenger2,11,moving_upwards,passenger3
-14,5,moving_downwards,passenger2,12,moving_upwards,passenger3
-15,4,moving_downwards,passenger2,13,moving_upwards,passenger3
-16,3,moving_downwards,passenger2,14,moving_upwards,passenger3
-17,3,at_stop,,15,moving_upwards,passenger3
-18,4,moving_upwards,,15,at_stop,passenger4
-19,5,moving_upwards,,14,moving_downwards,passenger4
-20,6,moving_upwards,,13,moving_downwards,passenger4
-21,7,moving_upwards,,12,moving_downwards,passenger4
-22,8,moving_upwards,,11,moving_downwards,passenger4
-23,8,at_stop,passenger5,10,moving_downwards,passenger4
-24,7,moving_downwards,passenger5,9,moving_downwards,passenger4
-25,6,moving_downwards,passenger5,8,moving_downwards,passenger4
-26,5,moving_downwards,passenger5,7,moving_downwards,passenger4
-27,5,at_stop,,6,moving_downwards,passenger4
-28,5,idle,,5,moving_downwards,passenger4
-29,5,idle,,4,moving_downwards,passenger4
-30,5,idle,,3,moving_downwards,passenger4
-31,5,idle,,2,moving_downwards,passenger4
-32,5,idle,,2,at_stop,
+0,1,idle,,1,idle,
+1,2,moving_upwards,,1,idle,
+2,3,moving_upwards,,1,idle,
+3,4,moving_upwards,,1,idle,
+4,4,at_stop,sd,1,idle,
+5,5,moving_upwards,sd,1,idle,
+6,5,at_stop,,1,idle,
 
 
 ,Call Time,Source->Dest,Pickup Time,Dropoff Time,Wait Time,Total Time,Elevator
-passenger1,0,1 -> 8,0,8,0,8,Ele 1
-passenger2,2,9 -> 3,10,17,8,15,Ele 1
-passenger3,3,4 -> 15,6,18,3,15,Ele 2
-passenger4,4,15 -> 2,18,32,14,28,Ele 2
-passenger5,5,8 -> 5,23,27,18,22,Ele 1
+sd,1,4 -> 5,4,6,3,5,Ele 1
 
 
 ,Wait Times,Total Times
-Min,0.0,8.0
-Max,18.0,28.0
-Mean,8.6,17.6
+Min,3.0,5.0
+Max,3.0,5.0
+Mean,3.0,5.0

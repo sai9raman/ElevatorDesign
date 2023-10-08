@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-@dataclass
+@dataclass()
 class CallRequest:
     """
     A dataclass that houses each call request and its various attrs
@@ -19,6 +19,8 @@ class CallRequest:
     def is_complete(self):
         return self.pickup_time != -1 and self.dropoff_time != -1
 
+    def __hash__(self):
+        return hash((self.time, self.id, self.source_floor, self.target_floor))
 
 @dataclass
 class ElevatorStop:
@@ -46,28 +48,9 @@ class Elevator:
         self.state = state
         self.name = name
         self.current_floor = current_floor
-        self.passengers = []
+        self.passengers: list[str] = []  # list of passenger ids in the elevator
         self.capacity = max_capacity_of_elevator
         self.elevator_plan: list[ElevatorStop] = []
-
-    @property
-    def check_capacity_at_floor(self) -> bool:
-        return len(self.passengers) == self.capacity
-
-    def coalesce_plan(self):
-        mark_for_removal = None
-        for i, stop in enumerate(self.elevator_plan[:-1]):
-            if stop.floor == self.elevator_plan[i + 1].floor:
-                stop.pickup_requests += self.elevator_plan[i + 1].pickup_requests
-                stop.dropoff_requests += self.elevator_plan[i + 1].dropoff_requests
-                mark_for_removal = i + 1
-                break
-        if mark_for_removal:
-            del self.elevator_plan[mark_for_removal]
-
-    def add_stop_to_plan(self, new_stop: ElevatorStop, index: int) -> None:
-        self.elevator_plan.insert(index, new_stop)
-        self.coalesce_plan()
 
     def remove_current_floor_from_plan(self, time: int) -> None:
         completed_stop = self.elevator_plan[0]
@@ -93,6 +76,9 @@ class Elevator:
             self.state = Elevator.ElevatorState.at_stop
             self.remove_current_floor_from_plan(time=time)
 
+    def update_plan(self, updated_plan: list[ElevatorStop]):
+        self.elevator_plan = updated_plan
+
 
 class Building:
     """
@@ -115,8 +101,3 @@ class Building:
             ) for i in range(self.number_of_elevators)
         ]
 
-
-@dataclass
-class PlanUpdate:
-    source_index: int
-    target_index: int
