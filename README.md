@@ -81,11 +81,11 @@ To clone and set up this project, follow these steps:
    `git clone https://github.com/sai9raman/ElevatorDesign.git`
 2. Setup the venv
    ```bash
-   python -m venv venv
+   python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip3 install -r requirements.txt
    ```
-4. Run the simulation by following the instructions in the venv
+4. Run the simulation by following the instructions in the Usage section
 
 ### Usage
 
@@ -101,10 +101,10 @@ To clone and set up this project, follow these steps:
 
 2. Run the simulation with the following command, specifying the path to your CSV file and the additional parameters
 
-   Command: `python main.py <your parameters>`
+   Command: `python main.py <your parameters>` for example `python3 main.py -i  "input_call_requests.csv" `
 
    ```bash
-   python main.py --help
+   python3 main.py --help
    usage: main.py [-h] -i INPUT_CSV_PATH [-bf BUILDING_FLOORS] [-be BUILDING_ELEVATORS] [-ec ELEVATOR_CAPACITY]
    
    optional arguments:
