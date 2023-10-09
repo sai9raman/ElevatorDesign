@@ -2,18 +2,101 @@
 -1,1,idle,,1,idle,
 0,1,idle,,1,idle,
 1,2,moving_upwards,,1,idle,
-2,3,moving_upwards,,1,idle,
-3,4,moving_upwards,,1,idle,
-4,4,at_stop,sd,1,idle,
-5,5,moving_upwards,sd,1,idle,
-6,5,at_stop,,1,idle,
+2,3,moving_upwards,,1,at_stop,passenger_6
+3,4,moving_upwards,,2,moving_upwards,passenger_6
+4,5,moving_upwards,,3,moving_upwards,passenger_6
+5,6,moving_upwards,,3,at_stop,passenger_7
+6,7,moving_upwards,,4,moving_upwards,passenger_7
+7,8,moving_upwards,,5,moving_upwards,passenger_7
+8,8,at_stop,passenger_1,6,moving_upwards,passenger_7
+9,9,moving_upwards,passenger_1,7,moving_upwards,passenger_7
+10,10,moving_upwards,passenger_1,8,moving_upwards,passenger_7
+11,11,moving_upwards,passenger_1,9,moving_upwards,passenger_7
+12,12,moving_upwards,passenger_1,10,moving_upwards,passenger_7
+13,13,moving_upwards,passenger_1,11,moving_upwards,passenger_7
+14,14,moving_upwards,passenger_1,11,at_stop,
+15,15,moving_upwards,passenger_1,12,moving_upwards,
+16,16,moving_upwards,passenger_1,13,moving_upwards,
+17,17,moving_upwards,passenger_1,14,moving_upwards,
+18,18,moving_upwards,passenger_1,15,moving_upwards,
+19,19,moving_upwards,passenger_1,16,moving_upwards,
+20,20,moving_upwards,passenger_1,17,moving_upwards,
+21,21,moving_upwards,passenger_1,17,at_stop,passenger_8
+22,22,moving_upwards,passenger_1,16,moving_downwards,passenger_8
+23,22,at_stop,,16,at_stop,
+24,21,moving_downwards,,15,moving_downwards,
+25,20,moving_downwards,,14,moving_downwards,
+26,20,at_stop,passenger_5,13,moving_downwards,
+27,19,moving_downwards,passenger_5,12,moving_downwards,
+28,18,moving_downwards,passenger_5,11,moving_downwards,
+29,17,moving_downwards,passenger_5,11,at_stop,"passenger_9, passenger_2, passenger_10"
+30,16,moving_downwards,passenger_5,10,moving_downwards,"passenger_9, passenger_2, passenger_10"
+31,15,moving_downwards,passenger_5,9,moving_downwards,"passenger_9, passenger_2, passenger_10"
+32,14,moving_downwards,passenger_5,8,moving_downwards,"passenger_9, passenger_2, passenger_10"
+33,13,moving_downwards,passenger_5,7,moving_downwards,"passenger_9, passenger_2, passenger_10"
+34,12,moving_downwards,passenger_5,6,moving_downwards,"passenger_9, passenger_2, passenger_10"
+35,11,moving_downwards,passenger_5,5,moving_downwards,"passenger_9, passenger_2, passenger_10"
+36,10,moving_downwards,passenger_5,4,moving_downwards,"passenger_9, passenger_2, passenger_10"
+37,9,moving_downwards,passenger_5,4,at_stop,"passenger_2, passenger_10"
+38,8,moving_downwards,passenger_5,3,moving_downwards,"passenger_2, passenger_10"
+39,7,moving_downwards,passenger_5,2,moving_downwards,"passenger_2, passenger_10"
+40,6,moving_downwards,passenger_5,1,moving_downwards,"passenger_2, passenger_10"
+41,6,at_stop,,1,at_stop,"passenger_3, passenger_12"
+42,5,moving_downwards,,2,moving_upwards,"passenger_3, passenger_12"
+43,4,moving_downwards,,3,moving_upwards,"passenger_3, passenger_12"
+44,4,at_stop,passenger_11,4,moving_upwards,"passenger_3, passenger_12"
+45,5,moving_upwards,passenger_11,5,moving_upwards,"passenger_3, passenger_12"
+46,6,moving_upwards,passenger_11,6,moving_upwards,"passenger_3, passenger_12"
+47,7,moving_upwards,passenger_11,7,moving_upwards,"passenger_3, passenger_12"
+48,8,moving_upwards,passenger_11,8,moving_upwards,"passenger_3, passenger_12"
+49,9,moving_upwards,passenger_11,9,moving_upwards,"passenger_3, passenger_12"
+50,10,moving_upwards,passenger_11,10,moving_upwards,"passenger_3, passenger_12"
+51,11,moving_upwards,passenger_11,11,moving_upwards,"passenger_3, passenger_12"
+52,12,moving_upwards,passenger_11,12,moving_upwards,"passenger_3, passenger_12"
+53,13,moving_upwards,passenger_11,12,at_stop,passenger_3
+54,14,moving_upwards,passenger_11,13,moving_upwards,passenger_3
+55,15,moving_upwards,passenger_11,14,moving_upwards,passenger_3
+56,16,moving_upwards,passenger_11,15,moving_upwards,passenger_3
+57,17,moving_upwards,passenger_11,16,moving_upwards,passenger_3
+58,18,moving_upwards,passenger_11,17,moving_upwards,passenger_3
+59,19,moving_upwards,passenger_11,18,moving_upwards,passenger_3
+60,19,at_stop,,19,moving_upwards,passenger_3
+61,18,moving_downwards,,20,moving_upwards,passenger_3
+62,17,moving_downwards,,20,at_stop,passenger_5
+63,16,moving_downwards,,20,idle,passenger_5
+64,15,moving_downwards,,20,idle,passenger_5
+65,14,moving_downwards,,20,idle,passenger_5
+66,13,moving_downwards,,20,idle,passenger_5
+67,12,moving_downwards,,20,idle,passenger_5
+68,11,moving_downwards,,20,idle,passenger_5
+69,10,moving_downwards,,20,idle,passenger_5
+70,9,moving_downwards,,20,idle,passenger_5
+71,8,moving_downwards,,20,idle,passenger_5
+72,7,moving_downwards,,20,idle,passenger_5
+73,6,moving_downwards,,20,idle,passenger_5
+74,6,at_stop,passenger_4,20,idle,passenger_5
+75,5,moving_downwards,passenger_4,20,idle,passenger_5
+76,4,moving_downwards,passenger_4,20,idle,passenger_5
+77,3,moving_downwards,passenger_4,20,idle,passenger_5
+78,3,at_stop,,20,idle,passenger_5
 
 
 ,Call Time,Source->Dest,Pickup Time,Dropoff Time,Wait Time,Total Time,Elevator
-sd,1,4 -> 5,4,6,3,5,Ele 1
+passenger_1,1,8 -> 22,8,23,7,22,Ele 1
+passenger_6,2,1 -> 3,2,5,0,3,Ele 2
+passenger_8,3,17 -> 16,21,23,18,20,Ele 2
+passenger_2,3,11 -> 1,29,41,26,38,Ele 2
+passenger_7,4,3 -> 11,5,14,1,10,Ele 2
+passenger_10,8,11 -> 1,29,41,21,33,Ele 2
+passenger_3,11,1 -> 20,41,62,30,51,Ele 2
+passenger_9,12,11 -> 4,29,37,17,25,Ele 2
+passenger_11,13,4 -> 19,44,60,31,47,Ele 1
+passenger_12,14,1 -> 12,41,53,27,39,Ele 2
+passenger_5,14,20 -> 6,62,41,48,27,Ele 1
+passenger_4,15,6 -> 3,74,78,59,63,Ele 1
 
 
 ,Wait Times,Total Times
-Min,3.0,5.0
-Max,3.0,5.0
-Mean,3.0,5.0
+Min,0.0,3.0
+Max,59.0,63.0
+Mean,23.75,31.5

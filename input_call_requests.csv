@@ -1,2 +1,13 @@
-time,id,source,dest,other
-0,sd,1,5,sdf
+time,id,source,dest
+1,passenger_1,8,22
+3,passenger_2,11,1
+11,passenger_3,1,20
+15,passenger_4,6,3
+14,passenger_5,20,6
+2,passenger_6,1,3
+4,passenger_7,3,11
+3,passenger_8,17,16
+12,passenger_9,11,4
+8,passenger_10,11,1
+13,passenger_11,4,19
+14,passenger_12,1,12

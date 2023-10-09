@@ -12,6 +12,15 @@ class BuildingElevatorEngine:
             max_capacity_of_elevator: int,
             input_df: pd.DataFrame,
     ):
+        """
+        Initializes the BuildingElevatorEngine with the given parameters.
+
+        Args:
+            number_of_floors (int): The number of floors in the building.
+            number_of_elevators (int): The number of elevators in the building.
+            max_capacity_of_elevator (int): The maximum capacity of each elevator.
+            input_df (pd.DataFrame): A DataFrame containing call request data.
+        """
         self.building = Building(
             number_of_floors=number_of_floors,
             number_of_elevators=number_of_elevators,
@@ -27,8 +36,8 @@ class BuildingElevatorEngine:
 
         # For logging and output
         elevator_log_columns = []
-        for ele in self.building.elevators:
-            elevator_log_columns += [f"{ele.name} Floor", f"{ele.name} Status", f"{ele.name} Passengers"]
+        for elevator in self.building.elevators:
+            elevator_log_columns += [f"{elevator.name} Floor", f"{elevator.name} Status", f"{elevator.name} Passengers"]
         self.elevator_log_df = pd.DataFrame(
             columns=elevator_log_columns
         )
@@ -45,12 +54,23 @@ class BuildingElevatorEngine:
         )
 
     def list_in_progress_requests(self) -> list[CallRequest]:
+        """
+        Returns a list of in-progress elevator requests.
+
+        Returns:
+            list[CallRequest]: List of in-progress elevator requests.
+        """
         return [request for request in self.elevator_requests if not request.is_complete]
 
     def run_simulation(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Runs the elevator simulation.
 
+        Returns:
+            tuple[pd.DataFrame, pd.DataFrame]: A tuple of DataFrames containing elevator and request logs.
+        """
         while len(self.elevator_requests) < self.expected_request_count \
-                and bool(self.list_in_progress_requests()):
+                or bool(self.list_in_progress_requests()):
             self.update_elevator_log()
             self.tick_time()
 
@@ -62,6 +82,9 @@ class BuildingElevatorEngine:
         return self.elevator_log_df, self.request_log_df
 
     def tick_time(self):
+        """
+        Advances the simulation time by one unit.
+        """
         self.time += 1
 
         # Get all new requests at this time, process them
@@ -82,6 +105,12 @@ class BuildingElevatorEngine:
             elevator.next(time=self.time)  # time is sent to the elevator just for logging
 
     def fetch_call_requests_at_time_t(self) -> list[CallRequest]:
+        """
+        Fetches call requests that occur at the current simulation time.
+
+        Returns:
+            list[CallRequest]: List of call requests at the current time.
+        """
         df_filtered_for_t = self.input_df[self.input_df["time"] == self.time]
         if df_filtered_for_t.empty:
             return []
@@ -95,6 +124,9 @@ class BuildingElevatorEngine:
         return call_requests_at_t
 
     def update_elevator_log(self):
+        """
+        Updates the elevator log DataFrame with the current state of elevators.
+        """
         for elevator in self.building.elevators:
             self.elevator_log_df.at[
                 self.time, f"{elevator.name} Floor"] = elevator.current_floor
@@ -104,6 +136,9 @@ class BuildingElevatorEngine:
                 self.time, f"{elevator.name} Passengers"] = ", ".join(elevator.passengers)
 
     def create_request_log(self):
+        """
+        Creates a log of elevator requests and their details.
+        """
         for call_request in self.elevator_requests:
             self.request_log_df.loc[call_request.id] = [
                 call_request.time,

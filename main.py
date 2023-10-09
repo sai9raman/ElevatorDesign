@@ -8,6 +8,18 @@ from errors import CallRequestError
 
 
 def positive_int(value):
+    """
+    Custom argument parser function to ensure the value is a positive integer.
+
+    Args:
+        value (str): The input value to be parsed as an integer.
+
+    Returns:
+        int: The parsed integer value if it's greater than 0.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not a positive integer.
+    """
     ivalue = int(value)
     if ivalue <= 0:
         raise argparse.ArgumentTypeError("%s is an invalid int value; value needs to be grtr than 0: " % value)
@@ -16,8 +28,10 @@ def positive_int(value):
 
 def arg_parser() -> dict[str, any]:
     """
-    Sets up the arguments needed to be inputted to run the Elevator Simulator
-    :return: args dict
+    Sets up the command-line arguments needed to run the Elevator Simulator.
+
+    Returns:
+        dict: A dictionary containing the parsed command-line arguments.
     """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-i", "--input_csv_path", help="Path for the csv file", required=True)
@@ -32,6 +46,15 @@ def arg_parser() -> dict[str, any]:
 
 
 def compute_metrics_from_request_log(request_log: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes metrics (min, max, mean) from the request log DataFrame.
+
+    Args:
+        request_log (pd.DataFrame): DataFrame containing request log data.
+
+    Returns:
+        pd.DataFrame: DataFrame with computed metrics.
+    """
     metrics_df = pd.DataFrame(columns=["Wait Times", "Total Times"])
     metrics_df.loc["Min"] = [min(request_log["Wait Time"]), min(request_log["Total Time"]), ]
     metrics_df.loc["Max"] = [max(request_log["Wait Time"]), max(request_log["Total Time"]), ]
@@ -40,6 +63,15 @@ def compute_metrics_from_request_log(request_log: pd.DataFrame) -> pd.DataFrame:
 
 
 def validate_call_requests(input_df: pd.DataFrame) -> None:
+    """
+    Validates the input DataFrame for call requests.
+
+    Args:
+        input_df (pd.DataFrame): DataFrame containing call request data.
+
+    Raises:
+        CallRequestError: If any validation checks fail.
+    """
     if input_df.empty:
         raise CallRequestError("No Call Requests Found")
     if not input_df["id"].is_unique:

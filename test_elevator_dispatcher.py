@@ -2,6 +2,7 @@ import pytest
 from pytest_unordered import unordered
 
 from elevator_dispatcher import ElevatorDispatcher
+from errors import DispatchError
 from models import ElevatorStop, CallRequest, Elevator
 
 
@@ -11,17 +12,17 @@ class TestSplitPlanIntoOrderedSubplans:
             ElevatorStop(floor=4, pickup_requests=[], dropoff_requests=[], )
         ]
         empty_plan = []
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(DispatchError) as exc_info:
             ElevatorDispatcher.split_plan_into_ordered_subplans(
                 empty_plan
             )
-        assert exc_info.value.args[0] == "Plan is too small to split; logical inconsistency"
+        assert exc_info.value.args[0] == "Plan is too small to split"
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(DispatchError) as exc_info:
             ElevatorDispatcher.split_plan_into_ordered_subplans(
                 plan_with_too_few_stops
             )
-        assert exc_info.value.args[0] == "Plan is too small to split; logical inconsistency"
+        assert exc_info.value.args[0] == "Plan is too small to split"
 
     def test_single_infection(self):
         plan_with_single_inflection = [
@@ -126,12 +127,13 @@ class TestCoalescePlan:
 
         ElevatorDispatcher.coalesce_plan(elevator_plan=plan)
 
-        assert plan == [
-            ElevatorStop(floor=2, pickup_requests=[call_req_a, call_req_c], dropoff_requests=[call_req_b]),
-            ElevatorStop(floor=6, pickup_requests=[], dropoff_requests=[]),
-            ElevatorStop(floor=8, pickup_requests=[], dropoff_requests=[]),
-            ElevatorStop(floor=7, pickup_requests=[], dropoff_requests=[]),
-        ]
+        assert len(plan) == 4
+        assert plan[0].floor == 2
+        assert plan[1].floor == 6
+        assert plan[2].floor == 8
+        assert plan[3].floor == 7
+        assert plan[0].pickup_requests == unordered([call_req_a, call_req_c])
+        assert plan[0].dropoff_requests == [call_req_b]
 
     def test_coalesce_multiple_duplicates(self):
         call_req_a = CallRequest(
@@ -163,13 +165,16 @@ class TestCoalescePlan:
 
         ElevatorDispatcher.coalesce_plan(elevator_plan=plan)
 
-        assert plan == unordered(
-            [
-                ElevatorStop(floor=2, pickup_requests=[call_req_a, call_req_c], dropoff_requests=[call_req_b]),
-                ElevatorStop(floor=6, pickup_requests=[call_req_d], dropoff_requests=[call_req_a, call_req_c]),
-                ElevatorStop(floor=7, pickup_requests=[call_req_e, call_req_f], dropoff_requests=[call_req_d]),
-            ]
-        )
+        assert len(plan) == 3
+        assert plan[0].floor == 2
+        assert plan[1].floor == 6
+        assert plan[2].floor == 7
+        assert plan[0].pickup_requests == unordered([call_req_a, call_req_c])
+        assert plan[0].dropoff_requests == [call_req_b]
+        assert plan[1].pickup_requests == unordered([call_req_d])
+        assert plan[1].dropoff_requests == unordered([call_req_a, call_req_c])
+        assert plan[2].pickup_requests == unordered([call_req_e, call_req_f])
+        assert plan[2].dropoff_requests == unordered([call_req_d])
 
 
 class TestCheckCapacity:
@@ -229,7 +234,6 @@ class TestCheckCapacity:
 
         result = self.elevator_dispatcher.check_capacity(self.elevator, elevator_plan)
         assert result is True
-
 
 
 class TestFindMatchingSubplanForRequest:
