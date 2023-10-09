@@ -80,7 +80,12 @@ To clone and set up this project, follow these steps:
 1. Clone the repository to your local machine
    `git clone https://github.com/sai9raman/ElevatorDesign.git`
 2. Setup the venv
-3. Run the simulation by following the instructions in the venv
+   ```bash
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+4. Run the simulation by following the instructions in the venv
 
 ### Usage
 
