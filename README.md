@@ -35,7 +35,9 @@ This dispatcher uses an algorithm where new requests do not alter the existing d
 
 **Example**
 
-Imagine a 25-floor building where there are two elevators. Elevator 1
+Imagine a 25-floor building where there are two elevators. 
+
+Elevator 1
 
 - Current Floor: 3
 - Current Plan: [3, 4, 6, 8, 2] : Making stops at floors 3, 4, 6, 8 and 2
