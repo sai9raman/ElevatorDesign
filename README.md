@@ -126,8 +126,9 @@ The outputs have three sections written to a csv file.
 2. Request Details
 3. Metrics summary 
 
-![](../../Desktop/Screen Shot 2023-10-09 at 10.02.23 PM.png)
-![](../../Desktop/Screen Shot 2023-10-09 at 10.02.28 PM.png)
+![Screen Shot 2023-10-09 at 10 02 23 PM](https://github.com/sai9raman/ElevatorDesign/assets/31806207/cb778d9e-254f-4a57-a026-4d238ff2d908)
+![Screen Shot 2023-10-09 at 10 02 28 PM](https://github.com/sai9raman/ElevatorDesign/assets/31806207/897fd4ec-211e-4550-b289-265c4f04fcd7)
+
 
 ### Next steps
 
