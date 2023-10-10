@@ -36,9 +36,9 @@ def arg_parser() -> dict[str, any]:
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-i", "--input_csv_path", help="Path for the csv file", required=True)
     parser.add_argument("-bf", "--building_floors", help="Number of floors in the building", default=100, type=positive_int)
-    parser.add_argument("-be", "--building_elevators", help="Number of elevators in the building", default=10, type=positive_int)
+    parser.add_argument("-be", "--building_elevators", help="Number of elevators in the building", default=3, type=positive_int)
     parser.add_argument(
-        "-ec", "--elevator_capacity", help="Capacity of Elevator in number of passengers", default=10,
+        "-ec", "--elevator_capacity", help="Capacity of Elevator in number of passengers", default=5,
         type=positive_int
     )
     args = vars(parser.parse_args())

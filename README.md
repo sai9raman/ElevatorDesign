@@ -119,6 +119,16 @@ To clone and set up this project, follow these steps:
                         Capacity of Elevator in number of passengers (default: 10)
    ```
 
+### Outputs
+
+The outputs have three sections written to a csv file. 
+1. Status of each elevator at each point of time 
+2. Request Details
+3. Metrics summary 
+
+![](../../Desktop/Screen Shot 2023-10-09 at 10.02.23 PM.png)
+![](../../Desktop/Screen Shot 2023-10-09 at 10.02.28 PM.png)
+
 ### Next steps
 
 1. Improve logging to show passengers being dropped off and picked up

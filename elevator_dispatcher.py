@@ -59,8 +59,29 @@ class ElevatorDispatcher:
             elevator_plan_mapping[elevator] = new_elevator_plan
 
         elevator_with_least_total_time: Elevator = min(elevator_time_mapping, key=elevator_time_mapping.get)
+        chosen_new_elevator_plan = elevator_plan_mapping[elevator_with_least_total_time]
+        updated_new_elevator_plan = self.put_request_id_in_elevator_plan(request, chosen_new_elevator_plan)
+        return elevator_with_least_total_time, updated_new_elevator_plan
 
-        return elevator_with_least_total_time, elevator_plan_mapping[elevator_with_least_total_time]
+    def put_request_id_in_elevator_plan(self, request: CallRequest, elevator_plan: list[ElevatorStop]):
+        i = len(elevator_plan) - 1
+        target_index = None
+        while i >= 0:
+            if elevator_plan[i].floor == request.target_floor:
+                elevator_plan[i].dropoff_requests.append(request)
+                target_index = i
+                break
+            i -= 1
+        if not target_index:
+            raise DispatchError("Could not find target floor in new plan")
+
+        i = target_index
+        while i >= 0:
+            if elevator_plan[i].floor == request.source_floor:
+                elevator_plan[i].pickup_requests.append(request)
+                break
+            i -= 1
+        return elevator_plan
 
     def get_total_time_for_request(
             self, current_floor: int, elevator_plan: list[ElevatorStop], request: CallRequest,
@@ -179,13 +200,13 @@ class ElevatorDispatcher:
         # Create ElevatorStops for the source and target floors of the request
         source_stop = ElevatorStop(
             floor=request.source_floor,
-            pickup_requests=[request],
+            pickup_requests=[],
             dropoff_requests=[],
         )
         target_stop = ElevatorStop(
             floor=request.target_floor,
             pickup_requests=[],
-            dropoff_requests=[request],
+            dropoff_requests=[],
         )
 
         if not elevator.elevator_plan:
@@ -253,7 +274,9 @@ class ElevatorDispatcher:
         self.coalesce_plan(elevator_plan=new_elevator_plan)
 
         # Remove the current floor repr from the plan if present
-        if current_floor_stop_repr and new_elevator_plan[0] == current_floor_stop_repr[0]:
+        if current_floor_stop_repr\
+                and new_elevator_plan[0] == current_floor_stop_repr[0] \
+                and not (source_stop.floor == current_floor_stop_repr[0].floor):  # rethink this condition
             new_elevator_plan = new_elevator_plan[1:]
 
         # Check if the elevator's capacity is exceeded with the new plan
